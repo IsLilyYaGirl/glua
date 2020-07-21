@@ -8,20 +8,26 @@ glua.particles = {}
 --glua.physicsObjects = {}
 
 local _rawset = rawset
+local _rawget = rawget
+local _debug = debug
 
-rawset = nil
-debug = nil
+function glua.__PROTECT()
+	rawset = nil
+	rawget = nil
+	debug = nil
+end
 
 function glua._tb(v)
-	if type(v) == "number" then
+	local typ = type(v)
+	if typ == "number" then
 		return v ~= 0
-	elseif type(v) == "string" then
+	elseif typ == "string" then
 		if string.lower(v) == "false" then
 			return false
 		else
 			return true
 		end
-	elseif type(v) == "boolean" then
+	elseif typ == "boolean" then
 		return v
 	else
 		return true
@@ -88,7 +94,7 @@ function tobool(o)
 				if getmetatable(o).tobool ~= nil then
 					return getmetatable(o).tobool(o)
 				else
-					return false
+					return true
 				end
 			else
 				return glua._tb(o)
@@ -165,10 +171,10 @@ function glua.addParticle(pa, x, y)
 	local p = copy(pa)
 	local rand = {"s", "d", "xv", "yv", "rot"}
 	for i, v in ipairs(rand) do
-		p[v] = math.random() * (p["_" .. v].max - p["_" .. v].min) + p["_" .. v].min
+		p[v] = love.math.random() * (p["_" .. v].max - p["_" .. v].min) + p["_" .. v].min
 	end
 	p.cs = {}
-	local lv = math.random()
+	local lv = love.math.random()
 	p.cs[1] = lerp(p._cs.min[1], p._cs.max[1], lv)
 	p.cs[2] = lerp(p._cs.min[2], p._cs.max[2], lv)
 	p.cs[3] = lerp(p._cs.min[3], p._cs.max[3], lv)
@@ -197,6 +203,7 @@ function glua.updateParticles(dt)
 	for i, p in ipairs(glua.particles) do
 		if p.f then
 			p.xv = p.xv * p.f
+			p.yv = p.yv * p.f
 		end
 		if p.g then
 			p.yv = p.yv + (p.g * dt)
@@ -234,6 +241,9 @@ function glua.drawParticles()
 		elseif p.t == "square" then
 			love.graphics.setColor(c)
 			love.graphics.rectangle(p.fl, p.x - s / 2, p.y - s / 2, s, s)
+		elseif (type(p.t) == "userdata") and (p.t:typeOf("Texture")) then
+			love.graphics.setColor(c)
+			love.graphics.draw(p.t, p.x, p.y, 0, s, s, p.tw * (s / 2), p.th * (s / 2))
 		end
 		love.graphics.pop()
 	end
@@ -375,15 +385,15 @@ function glua.drawProgressBar(bar, x, y)
 	love.graphics.setColor(bar.oc)
 	love.graphics.rectangle("line", x, y, bar.sx, bar.sy)
 	love.graphics.setColor(bar.bc)
-	love.graphics.rectangle("fill", x + 1, y + 1, bar.sx - 2, bar.sy - 2)
+	love.graphics.rectangle("fill", x + 1.5, y + 1.5, bar.sx - 2, bar.sy - 2)
 	love.graphics.setColor(bar.c)
 	if bar.typ == "horizontal" then
 		if bar.f ~= 0 then
-			love.graphics.rectangle("fill", x + 1, y + 1, (bar.sx*(bar.f/100)) - 2, bar.sy - 2)
+			love.graphics.rectangle("fill", x + 1.5, y + 1.5, (bar.sx*(bar.f/100)) - 2, bar.sy - 2)
 		end
 	elseif bar.typ == "vertical" then
 		if bar.f ~= 0 then
-			love.graphics.rectangle("fill", x + 1, y + 1, bar.sx - 2, (bar.sy*(bar.f/100)) - 2)
+			love.graphics.rectangle("fill", x + 1.5, y + 1.5, bar.sx - 2, (bar.sy*(bar.f/100)) - 2)
 		end
 	end
 	love.graphics.setColor(c)
@@ -748,14 +758,14 @@ glua.Vector = {
 		return true
 	end,
 	__le = function(o1, o2)
-		if #o1 ~= #o2 then return #o1 < #o2 end
+		if #o1 ~= #o2 then return #o1 <= #o2 end
 		for i, v in ipairs(o1) do
 			if o2[i] < v then return false end
 		end
 		return true
 	end,
 	__lt = function(o1, o2)
-		if #o1 ~= #o2 then return #o1 <= #o2 end
+		if #o1 ~= #o2 then return #o1 < #o2 end
 		for i, v in ipairs(o1) do
 			if o2[i] <= v then return false end
 		end
@@ -899,6 +909,7 @@ glua.PhysicsObject = {
 				self.yv = self.yv - self.g*dt*60
 			end
 		end
+		table.insert(glua.physicsObjects, obj)
 	end
 }
 
@@ -954,7 +965,6 @@ glua.PhysicsRectangle = {
 			love.graphics.setColor(self.c)
 			self.body:draw()
 		end
-		table.insert(glua.physicsObjects, obj)
 	end
 }
 ]]
@@ -1083,7 +1093,7 @@ glua.Component = {
 				t.Name = k
 				v.Children[t] = t
 			else
-				error("cannot set a non-component as a parent")
+				error("cannot set a non-component as a child")
 			end
 		end
 	end
@@ -1134,8 +1144,7 @@ glua.Animation = {
 glua.ProgressBar = {
 	extends = glua.Instance,
 	type = "ProgressBar",
-	init = function(bar, ...)
-		local sx, sy, typ, f, c, bc, oc = ...
+	init = function(bar, sx, sy, typ, f, c, bc, oc)
 		bar.sx, bar.sy, bar.typ, bar.f, bar.c, bar.bc, bar.oc = sx, sy, typ, f, c, bc, oc
 	end
 }
@@ -1143,8 +1152,7 @@ glua.ProgressBar = {
 glua.Particle = {
 	extends = glua.Instance,
 	type = "Particle",
-	init = function(p, ...)
-		local c, ncs, mcs, ss, ns, ms, t, nd, md, nxv, mxv, nyv, myv, f, g, fl, sr, nrot, mrot = ...
+	init = function(p, c, ncs, mcs, ss, ns, ms, t, nd, md, nxv, mxv, nyv, myv, f, g, fl, sr, nrot, mrot)
 		p.c, p.t, p.g, p.f, p.fl, p.tmr = c, t, g, f, fl, 0
 		p._cs = {min = (ncs or c), max = (mcs or c)}
 		p._s = {min = (ns or 1), max = (ms or 1), start = (ss or 0)}
@@ -1152,6 +1160,10 @@ glua.Particle = {
 		p._xv = {min = (nxv or -1), max = (mxv or 1)}
 		p._yv = {min = (nyv or -1), max = (myv or 1)}
 		p._rot = {min = (nrot or -1), max = (mrot or 1), start = (sr or 0)}
+		if (type(p.t) == "userdata") and (p.t:typeOf("Texture")) then
+			p.tw = p.t:getWidth()
+			p.th = p.t:getHeight()
+		end
 	end
 }
 
