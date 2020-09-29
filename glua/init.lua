@@ -5,6 +5,7 @@ glua._tst = tostring
 glua._tnm = tonumber
 glua._mt = {}
 glua.particles = {}
+glua.cObjects = {}
 --glua.physicsObjects = {}
 
 local _rawset = rawset
@@ -181,9 +182,9 @@ function glua.addParticle(pa, x, y)
 	p.cs[4] = lerp(p._cs.min[4] or 1, p._cs.max[4] or 1, lv)
 	p.x, p.y = x, y
 	table.insert(glua.particles, p)
+	return p
 end
 
---[[
 function glua.updatePhysics(dt)
 	for i, v in ipairs(glua.physicsObjects) do
 		v:update(dt)
@@ -196,7 +197,6 @@ function glua.drawPhysicsObjects()
 		v:draw()
 	end
 end
-]]
 
 function glua.updateParticles(dt)
 	local rem = {}
@@ -493,6 +493,12 @@ function glua.new(typ, ...)
 				glua._mt[typ.type][k] = v
 			end
 		end
+	elseif typ.extends then
+		local gi = {}
+		getInits(gi, typ.extends)
+		for i, v in ipairs(gi) do
+			v(o, ...)
+		end
 	end
 	o.type = typ.type
 	if typ.init then typ.init(o, ...) end
@@ -584,7 +590,7 @@ glua.Vector = {
 			end
 			return math.sqrt(n)
 		else
-			local lookup = {x = 1, y = 2, z = 3, w = 4, v = 5, u = 6, t = 7, s = 8, r = 9, q = 10}
+			local lookup = {x = 1, y = 2, z = 3, w = 4, v = 5, u = 6, t = 7, s = 8, r = 9, q = 10, p = 11}
 			if lookup[key] then
 				return obj[lookup[key]]
 			end
@@ -674,11 +680,11 @@ glua.Vector = {
 			local vs = {}
 			if #o1 > #o2 then
 				for i, v in ipairs(o1) do
-					vs[i] = v * (o2[i] or 1)
+					vs[i] = v * (o2[i] or 0)
 				end
 			else
 				for i, v in ipairs(o2) do
-					vs[i] = v * (o1[i] or 1)
+					vs[i] = v * (o1[i] or 0)
 				end
 			end
 			return glua.Vector(unpack(vs))
@@ -728,11 +734,11 @@ glua.Vector = {
 			local vs = {}
 			if #o1 > #o2 then
 				for i, v in ipairs(o1) do
-					vs[i] = v % (o2[i] or 1)
+					vs[i] = v % (o2[i] or 0)
 				end
 			else
 				for i, v in ipairs(o2) do
-					vs[i] = v % (o1[i] or 1)
+					vs[i] = v % (o1[i] or 0)
 				end
 			end
 			return glua.Vector(unpack(vs))
@@ -780,14 +786,15 @@ glua.Vector = {
 	end,
 }
 
-glua.Vector.i = glua.new(glua.Vector, 1, 0, 0)
-glua.Vector.j = glua.new(glua.Vector, 0, 1, 0)
+glua.Vector.i = glua.new(glua.Vector, 1)
+glua.Vector.j = glua.new(glua.Vector, 0, 1)
 glua.Vector.k = glua.new(glua.Vector, 0, 0, 1)
+glua.Vector.l = glua.new(glua.Vector, 0, 0, 0, 1)
 glua.Vector.one = glua.new(glua.Vector, 1, 1, 1)
 glua.Vector.zero = glua.new(glua.Vector, 0, 0, 0)
 
 function glua.Vector.cross(v1, v2)
-	if (#v1 ~= 3) or (#v2 ~= 3) then error("cross product cannot be called on vectors of size not equal to 3") end
+	if (#v1 ~= 3) or (#v2 ~= 3) then error("cross product unsupported for vectors of size not equal to 3") end
 	return glua.new(glua.Vector, v1.y * v2.z - v1.z * v2.y, v1.z * v2.x - v1.x * v2.z, v1.x * v2.y - v1.y * v2.x)
 end
 
@@ -795,15 +802,128 @@ function glua.Vector.dot(v1, v2)
 	local n = 0
 	if #v1 > #v2 then
 		for i, v in ipairs(v1) do
-			n = n + v * (v2[i] or 1)
+			n = n + v * (v2[i] or 0)
 		end
 	else
 		for i, v in ipairs(v2) do
-			n = n + v * (v1[i] or 1)
+			n = n + v * (v1[i] or 0)
 		end
 	end
 	return n
 end
+
+function glua.Vector.dist(v1, v2)
+	if #v1 ~= #v2 then error("cannot find distance between vectors of different size") end
+	local d = 0
+	for i, v in ipairs(v1) do
+		d = d + (v - v2[i]) ^ 2
+	end
+	return math.sqrt(d)
+end
+
+glua.Tween = {
+	extends = glua.Instance,
+	type = "Tween",
+	init = function(o)
+		o.times = {}
+		function o:addPoint(t, v, b, a)
+			o.times[t] = {val = v, abias = a or b or 1, bbias = b or 1}
+		end
+		function o:removePoint(t)
+			o.times[t] = nil
+		end
+		function o:getAtTime(t)
+			if o.times[t] then
+				return o.times[t].val
+			else
+				local mb, ma = 0, math.huge
+				local fmb, fma = false, false
+				for k in pairs(o.times) do
+					if k < t then
+						if k > mb then mb = k end
+						fmb = true
+					else
+						if k < ma then ma = k end
+						fma = true
+					end
+				end
+				if fmb and fma then
+					local mbv, mav = o.times[mb].val, o.times[ma].val
+					local mbb, mab = o.times[mb].bbias, o.times[ma].abias
+					local s = (t - mb) / (ma - mb)
+					--[[
+					local b = .5 + .5 * (mab - mbb) / math.max(mbb, mab)
+					local bv = (1 / (1 - b))
+					return lerp(mbv * 1 / bv, mav * bv, s)
+					]]
+					local rb = math.abs(mab - mbb) + 1
+					local bv = rb * math.exp(s)
+					local ibv = 1 - 1 / (1 - bv)
+					if mab > mbb then
+						return mbv / bv + mav / ibv
+					else
+						return mbv / ibv + mav / bv
+					end
+				else
+					if fmb then
+						return o.times[mb].val
+					elseif fma then
+						return o.times[ma].val
+					else
+						return 0
+					end
+				end
+			end
+		end
+	end
+}
+
+glua.Ray = {
+	extends = glua.Instance,
+	type = "Ray",
+	init = function(ray, pos, dir)
+		ray.pos = copy(pos)
+		ray.dir = copy(dir)
+		function ray.step(am)
+			ray.pos = ray.pos + ray.dir * am
+			local dc
+			for i, v in ipairs(glua.cObjects) do
+				if v:collidesWithPoint(ray.pos) then
+					dc = v
+					break
+				end
+			end
+			return dc
+		end
+	end
+}
+
+glua.CollisionObject = {
+	extends = glua.Instance,
+	type = "CollisionObject",
+	init = function(o, pos)
+		o.pos = copy(pos)
+		function o:collidesWithPoint(p)
+			return o.pos == p
+		end
+	end
+}
+
+glua.CollisionSphere = {
+	extends = glua.Instance,
+	type = "CollisionObject",
+	init = function(o, pos, r)
+		o.pos = copy(pos)
+		o.r = copy(r)
+		function o:collidesWithPoint(p)
+			return glua.Vector.dist(o.pos, p) <= r
+		end
+		function o:tangentToPoint(p)
+			return glua.Vector.dist(o.pos, p) == r
+		end
+	end
+}
+
 
 --[[
 glua.LineObject = {
@@ -862,7 +982,7 @@ glua.PhysicsObject = {
 		obj.r = 0
 		obj.c = {1, 1, 1}
 		function obj:update(dt)
-			obj.c = {1, 1, 1}
+			self.c = {1, 1, 1}
 			for i=1,10 do
 				if not self.i then
 					self.y = self.y - self.yv*dt*6
@@ -901,7 +1021,7 @@ glua.PhysicsObject = {
 				end
 				if c then
 					self.x = self.x - self.xv*dt*6
-					--co.x = co.x - co.xv*dt*6
+					co.x = co.x - co.xv*dt*6
 					break
 				end
 			end
@@ -909,7 +1029,6 @@ glua.PhysicsObject = {
 				self.yv = self.yv - self.g*dt*60
 			end
 		end
-		table.insert(glua.physicsObjects, obj)
 	end
 }
 
@@ -965,6 +1084,7 @@ glua.PhysicsRectangle = {
 			love.graphics.setColor(self.c)
 			self.body:draw()
 		end
+		table.insert(glua.physicsObjects, obj)
 	end
 }
 ]]
@@ -1037,7 +1157,7 @@ glua.SecureComponent = {
 	extends = glua.Instance,
 	type = "SecureComponent",
 	init = function(comp)
-		comp.__proxy = AuthTable(__(_() .. _(__())) .. __() .. table.concat({______("M", "a"), "i", "d", ______("e", "n")}, "\r\t\n\'\"\\'\\") .. (loadstring("return " .. "\t\n\t\n\t\n\t" .. _____(_(__(_(__(_(__()))))), __(_(__(_())))) .."-(1+1+1+1+1+1+1+1+(1+1+1+1+1+1+1+1+1+1+1+1+1+1+(1+1+1+(1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1)))), 'h', 'i', 'y', 'a', 'e', 'i', 'o', 'u'")()) .. _((___(__("138285252")) and ____(5, 49, 582, 483, 1, 6, 7, 8, 9, 1)) or _(___(__()))) .. _((___(__("138285252")) and ____(5, 49, 582, 483, 1, 6, 7, 8, 9, 1)) or _(___(__()))))
+		comp.__proxy = glua.AuthTable(__(_() .. _(__())) .. __() .. table.concat({______("M", "a"), "i", "d", ______("e", "n")}, "\r\t\n\'\"\\'\\") .. (loadstring("return " .. "\t\n\t\n\t\n\t" .. _____(_(__(_(__(_(__()))))), __(_(__(_())))) .."-(1+1+1+1+1+1+1+1+(1+1+1+1+1+1+1+1+1+1+1+1+1+1+(1+1+1+(1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1)))), 'h', 'i', 'y', 'a', 'e', 'i', 'o', 'u'")()) .. _((___(__("138285252")) and ____(5, 49, 582, 483, 1, 6, 7, 8, 9, 1)) or _(___(__()))) .. _((___(__("138285252")) and ____(5, 49, 582, 483, 1, 6, 7, 8, 9, 1)) or _(___(__()))))
 		
 	end,
 	__index = function(t, k)
@@ -1081,14 +1201,14 @@ glua.Component = {
 	end,
 	__newindex = function(t, k, v)
 		if k == "Parent" then
-			if getmetatable(v) and ((getmetatable(v).extends == glua.Component) or (getmetatable(v).type == "Component")) then
+			if v:IsA("Component") then --getmetatable(v) and ((getmetatable(v).extends == glua.Component) or (getmetatable(v).type == "Component")) then
 				t.__itable.Parent = v
 				v.Children[t] = t
 			else
 				error("cannot set a non-component as a parent")
 			end
 		else
-			if getmetatable(v) and ((getmetatable(v).extends == glua.Component) or (getmetatable(v).type == "Component")) then
+			if v:IsA("Component") then -- getmetatable(v) and ((getmetatable(v).extends == glua.Component) or (getmetatable(v).type == "Component")) then
 				t.__itable.Parent = v
 				t.Name = k
 				v.Children[t] = t
@@ -1332,6 +1452,63 @@ glua.DataTile = {
 	type = "DataTile",
 	init = function(tile, name, data, tag)
 		tile.name, tile.data, tile.tag = name, data, tag
+	end
+}
+
+glua.TileScreen = {
+	extends = glua.Instance,
+	type = "TileScreen",
+	init = function(o, x, y, w, h, map)
+		o.map = map
+		o.x = x
+		o.y = y
+		o.w = w
+		o.h = h
+		o.toDraw = {}
+		function o:updateTiles()
+			o.toDraw = {}
+			local x, y = _x or 0, _y or 0
+			local tox, toy = math.floor(self.x / self.map.size), math.floor(self.y / self.map.size)
+			for tx = tox, self.w+1+tox do
+				for ty = toy, self.h+1+toy do
+					local tile = self.map:get(tx, ty)
+					if tile then
+						table.insert(self.toDraw, {tile = tile, x = tx, y = ty})
+					end
+				end
+			end
+		end
+		function o:draw(dx, dy)
+			self:updateTiles()
+			local x, y = (dx or 0) - math.floor(self.x), (dy or 0) - math.floor(self.y)
+			for i, v in ipairs(self.toDraw) do
+				local tile, _x, _y = v.tile, v.x, v.y
+				if (type(tile) == "string") or (type(tile) == "number") then
+					if self.map.tilegfx[tile] then
+						love.graphics.draw(self.map.tilegfx[tile], x + ((_x - 1) * self.map.size), y + ((_y - 1) * self.map.size))
+					else
+						love.graphics.draw(self.map.tilegfx.notex, x + ((_x - 1) * self.map.size), y + ((_y - 1) * self.map.size))
+					end
+				else
+					if (type(self.map.tilegfx[tile.name]) == "TaggedTile") or (type(self.map.tilegfx[tile.name]) == "DataTile") then
+						if self.map.tilegfx[tile.name][tile.tag] then
+							love.graphics.draw(self.map.tilegfx[tile.name][tile.tag], x + ((_x - 1) * self.map.size), y + ((_y - 1) * self.map.size))
+						else
+							love.graphics.draw(self.map.tilegfx.notex, x + ((_x - 1) * self.map.size), y + ((_y - 1) * self.map.size))
+						end
+					else
+						if self.map.tilegfx[tile.name] then
+							love.graphics.draw(self.map.tilegfx[tile.name], x + ((_x - 1) * self.map.size), y + ((_y - 1) * self.map.size))
+						else
+							love.graphics.draw(self.map.tilegfx.notex, x + ((_x - 1) * self.map.size), y + ((_y - 1) * self.map.size))
+						end
+					end
+				end
+			end
+		end
+		function o:nuDraw(_x, _y)
+			
+		end
 	end
 }
 
