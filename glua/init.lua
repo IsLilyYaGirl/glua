@@ -109,7 +109,7 @@ function tobool(o)
 end
 
 local function copy(obj, seen) -- snippet
-	if type(obj) ~= 'table' then return obj end
+	if glua._type(obj) ~= 'table' then return obj end
 	if seen and seen[obj] then return seen[obj] end
 	local s = seen or {}
 	local res = setmetatable({}, getmetatable(obj))
@@ -297,17 +297,39 @@ function glua.drawTilemap(map, px, py)
 						love.graphics.draw(map.tilegfx.notex, x + ((_x - 1) * map.size), y + ((_y - 1) * map.size))
 					end
 				else
-					if (type(map.tilegfx[tile.name]) == "TaggedTile") or (type(map.tilegfx[tile.name]) == "DataTile") then
-						if map.tilegfx[tile.name][tile.tag] then
-							love.graphics.draw(map.tilegfx[tile.name][tile.tag], x + ((_x - 1) * map.size), y + ((_y - 1) * map.size))
+					if (type(tile) == "TaggedTile") then
+						if self.map.tilegfx[tile.name][tile.tag] then
+							love.graphics.draw(self.map.tilegfx[tile.name][tile.tag], x + ((_x - 1) * self.map.size), y + ((_y - 1) * self.map.size))
 						else
-							love.graphics.draw(map.tilegfx.notex, x + ((_x - 1) * map.size), y + ((_y - 1) * map.size))
+							love.graphics.draw(self.map.tilegfx.notex, x + ((_x - 1) * self.map.size), y + ((_y - 1) * self.map.size))
+						end
+					elseif (type(tile) == "DataTile") then
+						local r
+						if tile.data.rot then r = math.rad(tile.data.rot) end
+						if self.map.tilegfx[tile.name] then
+							love.graphics.draw(self.map.tilegfx[tile.name], x + ((_x - 1) * self.map.size) + self.map.size/2, y + ((_y - 1) * self.map.size) + self.map.size/2, r, 1, 1, self.map.size/2, self.map.size/2)
+						else
+							love.graphics.draw(self.map.tilegfx.notex, x + ((_x - 1) * self.map.size) + self.map.size/2, y + ((_y - 1) * self.map.size) + self.map.size/2, r, 1, 1, self.map.size/2, self.map.size/2)
+						end
+						if tile.data.draw then
+							tile.data.draw(tile, x + ((_x - 1) * self.map.size), y + ((_y - 1) * self.map.size), _x, _y)
+						end
+					elseif (type(tile) == "TaggedDataTile") then
+						local r
+						if tile.data.rot then r = math.rad(tile.data.rot) end
+						if self.map.tilegfx[tile.name][tile.tag] then
+							love.graphics.draw(self.map.tilegfx[tile.name][tile.tag], x + ((_x - 1) * self.map.size) + self.map.size/2, y + ((_y - 1) * self.map.size) + self.map.size/2, r, 1, 1, self.map.size/2, self.map.size/2)
+						else
+							love.graphics.draw(self.map.tilegfx.notex, x + ((_x - 1) * self.map.size) + self.map.size/2, y + ((_y - 1) * self.map.size) + self.map.size/2, r, 1, 1, self.map.size/2, self.map.size/2)
+						end
+						if tile.data.draw then
+							tile.data.draw(tile, x + ((_x - 1) * self.map.size), y + ((_y - 1) * self.map.size), _x, _y)
 						end
 					else
-						if map.tilegfx[tile.name] then
-							love.graphics.draw(map.tilegfx[tile.name], x + ((_x - 1) * map.size), y + ((_y - 1) * map.size))
+						if self.map.tilegfx[tile.name] then
+							love.graphics.draw(self.map.tilegfx[tile.name], x + ((_x - 1) * self.map.size), y + ((_y - 1) * self.map.size))
 						else
-							love.graphics.draw(map.tilegfx.notex, x + ((_x - 1) * map.size), y + ((_y - 1) * map.size))
+							love.graphics.draw(self.map.tilegfx.notex, x + ((_x - 1) * self.map.size), y + ((_y - 1) * self.map.size))
 						end
 					end
 				end
@@ -328,17 +350,39 @@ function glua.drawTilemapLayer(map, dl, px, py)
 						love.graphics.draw(map.tilegfx.notex, x + ((_x - 1) * map.size), y + ((_y - 1) * map.size))
 					end
 				else
-					if (type(map.tilegfx[tile.name]) == "TaggedTile") or (type(map.tilegfx[tile.name]) == "DataTile") then
-						if map.tilegfx[tile.name][tile.tag] then
-							love.graphics.draw(map.tilegfx[tile.name][tile.tag], x + ((_x - 1) * map.size), y + ((_y - 1) * map.size))
+					if (type(tile) == "TaggedTile") then
+						if self.map.tilegfx[tile.name][tile.tag] then
+							love.graphics.draw(self.map.tilegfx[tile.name][tile.tag], x + ((_x - 1) * self.map.size), y + ((_y - 1) * self.map.size))
 						else
-							love.graphics.draw(map.tilegfx.notex, x + ((_x - 1) * map.size), y + ((_y - 1) * map.size))
+							love.graphics.draw(self.map.tilegfx.notex, x + ((_x - 1) * self.map.size), y + ((_y - 1) * self.map.size))
+						end
+					elseif (type(tile) == "DataTile") then
+						local r
+						if tile.data.rot then r = math.rad(tile.data.rot) end
+						if self.map.tilegfx[tile.name] then
+							love.graphics.draw(self.map.tilegfx[tile.name], x + ((_x - 1) * self.map.size) + self.map.size/2, y + ((_y - 1) * self.map.size) + self.map.size/2, r, 1, 1, self.map.size/2, self.map.size/2)
+						else
+							love.graphics.draw(self.map.tilegfx.notex, x + ((_x - 1) * self.map.size) + self.map.size/2, y + ((_y - 1) * self.map.size) + self.map.size/2, r, 1, 1, self.map.size/2, self.map.size/2)
+						end
+						if tile.data.draw then
+							tile.data.draw(tile, x + ((_x - 1) * self.map.size), y + ((_y - 1) * self.map.size), _x, _y)
+						end
+					elseif (type(tile) == "TaggedDataTile") then
+						local r
+						if tile.data.rot then r = math.rad(tile.data.rot) end
+						if self.map.tilegfx[tile.name][tile.tag] then
+							love.graphics.draw(self.map.tilegfx[tile.name][tile.tag], x + ((_x - 1) * self.map.size) + self.map.size/2, y + ((_y - 1) * self.map.size) + self.map.size/2, r, 1, 1, self.map.size/2, self.map.size/2)
+						else
+							love.graphics.draw(self.map.tilegfx.notex, x + ((_x - 1) * self.map.size) + self.map.size/2, y + ((_y - 1) * self.map.size) + self.map.size/2, r, 1, 1, self.map.size/2, self.map.size/2)
+						end
+						if tile.data.draw then
+							tile.data.draw(tile, x + ((_x - 1) * self.map.size), y + ((_y - 1) * self.map.size), _x, _y)
 						end
 					else
-						if map.tilegfx[tile.name] then
-							love.graphics.draw(map.tilegfx[tile.name], x + ((_x - 1) * map.size), y + ((_y - 1) * map.size))
+						if self.map.tilegfx[tile.name] then
+							love.graphics.draw(self.map.tilegfx[tile.name], x + ((_x - 1) * self.map.size), y + ((_y - 1) * self.map.size))
 						else
-							love.graphics.draw(map.tilegfx.notex, x + ((_x - 1) * map.size), y + ((_y - 1) * map.size))
+							love.graphics.draw(self.map.tilegfx.notex, x + ((_x - 1) * self.map.size), y + ((_y - 1) * self.map.size))
 						end
 					end
 				end
@@ -360,17 +404,39 @@ function glua.drawTilemapNotLayer(map, nl, px, py)
 							love.graphics.draw(map.tilegfx.notex, x + ((_x - 1) * map.size), y + ((_y - 1) * map.size))
 						end
 					else
-						if (type(map.tilegfx[tile.name]) == "TaggedTile") or (type(map.tilegfx[tile.name]) == "DataTile") then
-							if map.tilegfx[tile.name][tile.tag] then
-								love.graphics.draw(map.tilegfx[tile.name][tile.tag], x + ((_x - 1) * map.size), y + ((_y - 1) * map.size))
+						if (type(tile) == "TaggedTile") then
+							if self.map.tilegfx[tile.name][tile.tag] then
+								love.graphics.draw(self.map.tilegfx[tile.name][tile.tag], x + ((_x - 1) * self.map.size), y + ((_y - 1) * self.map.size))
 							else
-								love.graphics.draw(map.tilegfx.notex, x + ((_x - 1) * map.size), y + ((_y - 1) * map.size))
+								love.graphics.draw(self.map.tilegfx.notex, x + ((_x - 1) * self.map.size), y + ((_y - 1) * self.map.size))
+							end
+						elseif (type(tile) == "DataTile") then
+							local r
+							if tile.data.rot then r = math.rad(tile.data.rot) end
+							if self.map.tilegfx[tile.name] then
+								love.graphics.draw(self.map.tilegfx[tile.name], x + ((_x - 1) * self.map.size) + self.map.size/2, y + ((_y - 1) * self.map.size) + self.map.size/2, r, 1, 1, self.map.size/2, self.map.size/2)
+							else
+								love.graphics.draw(self.map.tilegfx.notex, x + ((_x - 1) * self.map.size) + self.map.size/2, y + ((_y - 1) * self.map.size) + self.map.size/2, r, 1, 1, self.map.size/2, self.map.size/2)
+							end
+							if tile.data.draw then
+								tile.data.draw(tile, x + ((_x - 1) * self.map.size), y + ((_y - 1) * self.map.size), _x, _y)
+							end
+						elseif (type(tile) == "TaggedDataTile") then
+							local r
+							if tile.data.rot then r = math.rad(tile.data.rot) end
+							if self.map.tilegfx[tile.name][tile.tag] then
+								love.graphics.draw(self.map.tilegfx[tile.name][tile.tag], x + ((_x - 1) * self.map.size) + self.map.size/2, y + ((_y - 1) * self.map.size) + self.map.size/2, r, 1, 1, self.map.size/2, self.map.size/2)
+							else
+								love.graphics.draw(self.map.tilegfx.notex, x + ((_x - 1) * self.map.size) + self.map.size/2, y + ((_y - 1) * self.map.size) + self.map.size/2, r, 1, 1, self.map.size/2, self.map.size/2)
+							end
+							if tile.data.draw then
+								tile.data.draw(tile, x + ((_x - 1) * self.map.size), y + ((_y - 1) * self.map.size), _x, _y)
 							end
 						else
-							if map.tilegfx[tile.name] then
-								love.graphics.draw(map.tilegfx[tile.name], x + ((_x - 1) * map.size), y + ((_y - 1) * map.size))
+							if self.map.tilegfx[tile.name] then
+								love.graphics.draw(self.map.tilegfx[tile.name], x + ((_x - 1) * self.map.size), y + ((_y - 1) * self.map.size))
 							else
-								love.graphics.draw(map.tilegfx.notex, x + ((_x - 1) * map.size), y + ((_y - 1) * map.size))
+								love.graphics.draw(self.map.tilegfx.notex, x + ((_x - 1) * self.map.size), y + ((_y - 1) * self.map.size))
 							end
 						end
 					end
@@ -884,11 +950,22 @@ glua.Ray = {
 	init = function(ray, pos, dir)
 		ray.pos = copy(pos)
 		ray.dir = copy(dir)
-		function ray.step(am)
-			ray.pos = ray.pos + ray.dir * am
+		function ray:step(am)
+			self.pos = self.pos + self.dir * am
 			local dc
 			for i, v in ipairs(glua.cObjects) do
-				if v:collidesWithPoint(ray.pos) then
+				if v:collidesWithPoint(self.pos) then
+					dc = v
+					break
+				end
+			end
+			return dc
+		end
+		function ray:stepInDir(dir, am)
+			self.pos = self.pos + dir * am
+			local dc
+			for i, v in ipairs(glua.cObjects) do
+				if v:collidesWithPoint(self.pos) then
 					dc = v
 					break
 				end
@@ -901,25 +978,58 @@ glua.Ray = {
 glua.CollisionObject = {
 	extends = glua.Instance,
 	type = "CollisionObject",
-	init = function(o, pos)
+	init = function(o, pos, c)
 		o.pos = copy(pos)
+		o.c = copy(c)
+		function o:distanceToPoint(p)
+			return glua.Vector.dist(o.pos, p)
+		end
 		function o:collidesWithPoint(p)
 			return o.pos == p
 		end
+		table.insert(glua.cObjects, o)
 	end
 }
 
 glua.CollisionSphere = {
-	extends = glua.Instance,
-	type = "CollisionObject",
-	init = function(o, pos, r)
-		o.pos = copy(pos)
-		o.r = copy(r)
+	extends = glua.CollisionObject,
+	type = "CollisionSphere",
+	init = function(o, pos, c, r)
+		o.r = r
+		function o:distanceToPoint(p)
+			return glua.Vector.dist(o.pos, p) - o.r
+		end
 		function o:collidesWithPoint(p)
-			return glua.Vector.dist(o.pos, p) <= r
+			return glua.Vector.dist(o.pos, p) <= o.r
 		end
 		function o:tangentToPoint(p)
-			return glua.Vector.dist(o.pos, p) == r
+			return glua.Vector.dist(o.pos, p) == o.r
+		end
+	end
+}
+
+glua.CollisionCube = {
+	extends = glua.CollisionObject,
+	type = "CollisionCube",
+	init = function(o, pos, c, s)
+		o.s = s
+		function o:distanceToPoint(p)
+			local dx = math.max((self.pos.x - o.s / 2) - p.x, 0, p.x - (self.pos.x + o.s / 2))
+			local dy = math.max((self.pos.y - o.s / 2) - p.y, 0, p.y - (self.pos.y + o.s / 2))
+			local dz = math.max((self.pos.z - o.s / 2) - p.z, 0, p.z - (self.pos.z + o.s / 2))
+			return math.sqrt(dx*dx + dy*dy + dz*dz)
+		end
+		function o:collidesWithPoint(p)
+			local dx = math.max((self.pos.x - o.s / 2) - p.x, 0, p.x - (self.pos.x + o.s / 2))
+			local dy = math.max((self.pos.y - o.s / 2) - p.y, 0, p.y - (self.pos.y + o.s / 2))
+			local dz = math.max((self.pos.z - o.s / 2) - p.z, 0, p.z - (self.pos.z + o.s / 2))
+			return math.sqrt(dx*dx + dy*dy + dz*dz) <= o.s
+		end
+		function o:tangentToPoint(p)
+			local dx = math.max((self.pos.x - o.s / 2) - p.x, 0, p.x - (self.pos.x + o.s / 2))
+			local dy = math.max((self.pos.y - o.s / 2) - p.y, 0, p.y - (self.pos.y + o.s / 2))
+			local dz = math.max((self.pos.z - o.s / 2) - p.z, 0, p.z - (self.pos.z + o.s / 2))
+			return math.sqrt(dx*dx + dy*dy + dz*dz) == o.s
 		end
 	end
 }
@@ -1322,7 +1432,7 @@ glua.Tilemap = {
 				return nil
 			end
 		end
-		function map:generateQuads()
+		--[[function map:generateQuads()
 			local i = love.image.newImageData(1000, 16)
 			local quads = {}
 			local imgd = 1
@@ -1435,7 +1545,7 @@ glua.Tilemap = {
 				end
 			end
 			return batch, quads, ids
-		end
+		end]]
 	end
 }
 
@@ -1450,6 +1560,14 @@ glua.TaggedTile = {
 glua.DataTile = {
 	extends = glua.Instance,
 	type = "DataTile",
+	init = function(tile, name, data)
+		tile.name, tile.data = name, data
+	end
+}
+
+glua.TaggedDataTile = {
+	extends = glua.Instance,
+	type = "TaggedDataTile",
 	init = function(tile, name, data, tag)
 		tile.name, tile.data, tile.tag = name, data, tag
 	end
@@ -1465,21 +1583,21 @@ glua.TileScreen = {
 		o.w = w
 		o.h = h
 		o.toDraw = {}
-		function o:updateTiles()
+		function o:updateTiles(l)
 			o.toDraw = {}
 			local x, y = _x or 0, _y or 0
 			local tox, toy = math.floor(self.x / self.map.size), math.floor(self.y / self.map.size)
 			for tx = tox, self.w+1+tox do
 				for ty = toy, self.h+1+toy do
-					local tile = self.map:get(tx, ty)
+					local tile = self.map:get(tx, ty, l)
 					if tile then
 						table.insert(self.toDraw, {tile = tile, x = tx, y = ty})
 					end
 				end
 			end
 		end
-		function o:draw(dx, dy)
-			self:updateTiles()
+		function o:draw(dx, dy, l)
+			self:updateTiles(l)
 			local x, y = (dx or 0) - math.floor(self.x), (dy or 0) - math.floor(self.y)
 			for i, v in ipairs(self.toDraw) do
 				local tile, _x, _y = v.tile, v.x, v.y
@@ -1490,11 +1608,33 @@ glua.TileScreen = {
 						love.graphics.draw(self.map.tilegfx.notex, x + ((_x - 1) * self.map.size), y + ((_y - 1) * self.map.size))
 					end
 				else
-					if (type(self.map.tilegfx[tile.name]) == "TaggedTile") or (type(self.map.tilegfx[tile.name]) == "DataTile") then
+					if (type(tile) == "TaggedTile") then
 						if self.map.tilegfx[tile.name][tile.tag] then
 							love.graphics.draw(self.map.tilegfx[tile.name][tile.tag], x + ((_x - 1) * self.map.size), y + ((_y - 1) * self.map.size))
 						else
 							love.graphics.draw(self.map.tilegfx.notex, x + ((_x - 1) * self.map.size), y + ((_y - 1) * self.map.size))
+						end
+					elseif (type(tile) == "DataTile") then
+						local r
+						if tile.data.rot then r = math.rad(tile.data.rot) end
+						if self.map.tilegfx[tile.name] then
+							love.graphics.draw(self.map.tilegfx[tile.name], x + ((_x - 1) * self.map.size) + self.map.size/2, y + ((_y - 1) * self.map.size) + self.map.size/2, r, 1, 1, self.map.size/2, self.map.size/2)
+						else
+							love.graphics.draw(self.map.tilegfx.notex, x + ((_x - 1) * self.map.size) + self.map.size/2, y + ((_y - 1) * self.map.size) + self.map.size/2, r, 1, 1, self.map.size/2, self.map.size/2)
+						end
+						if tile.data.draw then
+							tile.data.draw(tile, x + ((_x - 1) * self.map.size), y + ((_y - 1) * self.map.size), _x, _y)
+						end
+					elseif (type(tile) == "TaggedDataTile") then
+						local r
+						if tile.data.rot then r = math.rad(tile.data.rot) end
+						if self.map.tilegfx[tile.name][tile.tag] then
+							love.graphics.draw(self.map.tilegfx[tile.name][tile.tag], x + ((_x - 1) * self.map.size) + self.map.size/2, y + ((_y - 1) * self.map.size) + self.map.size/2, r, 1, 1, self.map.size/2, self.map.size/2)
+						else
+							love.graphics.draw(self.map.tilegfx.notex, x + ((_x - 1) * self.map.size) + self.map.size/2, y + ((_y - 1) * self.map.size) + self.map.size/2, r, 1, 1, self.map.size/2, self.map.size/2)
+						end
+						if tile.data.draw then
+							tile.data.draw(tile, x + ((_x - 1) * self.map.size), y + ((_y - 1) * self.map.size), _x, _y)
 						end
 					else
 						if self.map.tilegfx[tile.name] then
@@ -1505,9 +1645,6 @@ glua.TileScreen = {
 					end
 				end
 			end
-		end
-		function o:nuDraw(_x, _y)
-			
 		end
 	end
 }
