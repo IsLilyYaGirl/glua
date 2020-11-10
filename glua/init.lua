@@ -74,8 +74,6 @@ function tonumber(o, ...)
 			if getmetatable(o).type ~= nil then
 				if getmetatable(o).tonumber ~= nil then
 					return getmetatable(o).tonumber(o, ...)
-				else
-					return nil
 				end
 			else
 				return glua._tnm(o, ...)
@@ -1425,11 +1423,7 @@ glua.Tilemap = {
 			if map.tiles[l] then
 				if map.tiles[l][x] then
 					return map.tiles[l][x][y]
-				else
-					return nil
 				end
-			else
-				return nil
 			end
 		end
 		--[[function map:generateQuads()
@@ -1688,14 +1682,10 @@ glua.Matrix2D = {
 			if type(x) == "Vector" then
 				if obj[x[1]] then
 					return obj[x[1]][x[2]]
-				else
-					return nil
 				end
 			else
 				if obj[x] then
 					return obj[x][y]
-				else
-					return nil
 				end
 			end
 		end
