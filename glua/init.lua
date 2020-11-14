@@ -39,7 +39,11 @@ function type(o)
 	local ctype = glua._type(o)
 	if ctype == "table" then
 		if getmetatable(o) ~= nil then
-			return getmetatable(o).type or "table"
+			if glua._type(getmetatable(o).type) == "string" then
+				return getmetatable(o).type or "table"
+			else
+				return "table"
+			end
 		else
 			return "table"
 		end
@@ -51,7 +55,7 @@ end
 function tostring(o, ...)
 	if glua._type(o) == "table" then
 		if getmetatable(o) ~= nil then
-			if getmetatable(o).type ~= nil then
+			if (getmetatable(o).type ~= nil) and (glua._type(getmetatable(o).type) == "string") then
 				if getmetatable(o).tostring ~= nil then
 					return getmetatable(o).tostring(o, ...)
 				else
